@@ -51,3 +51,26 @@ class Database:
                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
             """, (user_id, username, first_name, last_name))
             conn.commit()
+
+    def add_habit(self, user_id, habit_name, reminder_time=None):
+        """Ads a new habit"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO habits (user_id, name, reminder_time)
+                VALUES (?, ?, ?)
+            """, (user_id, habit_name, reminder_time))
+            conn.commit()
+            return cursor.lastrowid  # Returning the ID of the created habit
+
+    def get_user_habits(self, user_id):
+        """Returns all the user's habits"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, name, reminder_time, created_at
+                FROM habits
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            """, (user_id,))
+            return cursor.fetchall()

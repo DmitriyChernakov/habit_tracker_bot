@@ -4,7 +4,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from handlers import common
+from handlers import common, habits
 
 
 # Configuring logging
@@ -21,6 +21,7 @@ dp = Dispatcher(storage=storage)
 
 # Connecting router (command handler)
 dp.include_router(common.router)
+dp.include_router(habits.router)
 
 
 async def main():
