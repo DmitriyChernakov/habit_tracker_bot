@@ -30,6 +30,7 @@ async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="🚀 Запустить бота"),
         BotCommand(command="add", description="➕ Добавить привычку"),
+        BotCommand(command="today", description="📅 Привычки на сегодня"),
         BotCommand(command="help", description="❓ Помощь"),
         BotCommand(command="cancel", description="✖ Отменить действие"),
     ]

@@ -1,5 +1,5 @@
 import sqlite3
-import datetime
+from datetime import date
 
 
 class Database:
@@ -40,6 +40,19 @@ class Database:
                 )
             """)
 
+            # Table of completion marks
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS checkins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    habit_id INTEGER,
+                    check_date DATE DEFAULT CURRENT_DATE,
+                    completed BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE,
+                    UNIQUE(habit_id, check_date)
+                )
+            """)
+
             conn.commit()
 
     def add_user(self, user_id, username, first_name, last_name):
@@ -74,3 +87,64 @@ class Database:
                 ORDER BY created_at DESC
             """, (user_id,))
             return cursor.fetchall()
+
+
+    def get_habits_with_today_status(self, user_id):
+        """
+        Return all the user's habits with information about whether they are completed today
+        """
+        today = date.today().isoformat()
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    h.id,
+                    h.name,
+                    h.reminder_time,
+                    CASE WHEN c.id IS NOT NULL THEN 1 ELSE 0 END as completed_today
+                FROM habits h
+                LEFT JOIN checkins c ON h.id = c.habit_id AND c.check_date = ?
+                WHERE h.user_id = ?
+                ORDER BY
+                    completed_today ASC,  -- unfulfilled from above
+                    h.reminder_time IS NULL,  -- with the reminder above
+                    h.reminder_time ASC
+            """, (today, user_id))
+
+            return cursor.fetchall()
+
+
+    def mark_habit_completed(self, habit_id):
+        """
+        Marks a habit as completed today.
+        Returns 'True' if the mark ha been created, 'False' if it has already been
+        """
+        today = date.today().isoformat()
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            try:
+                cursor.execute("""
+                    INSERT INTO checkins (habit_id, check_date)
+                    VALUES (?, ?)
+                """, (habit_id, today))
+                conn.commit()
+                return True
+            except sqlite3.IntegrityError:
+                # Already mark today
+                return False
+
+
+    def unmark_today(self, habit_id):
+        """Deletes the completion mark for today"""
+        today = date.today().isoformat()
+
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                DELETE FROM checkins
+                WHERE habit_id = ? AND check_date = ?
+            """, (habit_id, today))
+            conn.commit()
+            return cursor.rowcount > 0
