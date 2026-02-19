@@ -156,3 +156,76 @@ async def habit_time_received(message: Message, state: FSMContext):
         f"🕒 Напоминание каждый день в {reminder_time}\n\n"
         "Чтобы отметить выполнение, используй /today"
     )
+
+
+@router.message(Command("today"))
+async def cmd_today(message: Message):
+    """Shows habits for today with buttons for marking"""
+    user_id = message.from_user.id
+
+    # Get habits with a status
+    habits = db.get_habits_with_today_status(user_id)
+
+    if not habits:
+        await message.answer(
+            "📭 У тебя пока нет привычек.\n"
+            "Добавь первую командой /add"
+        )
+        return
+    # Forming a message
+    text = "📅 **Твои привычки на сегодня**\n\n"
+    keyboard = InlineKeyboardBuilder()
+
+    for habit_id, name, reminder_time, completed in habits:
+        status = "✅" if completed else "⏳"
+        time_str = f" (напомню в {reminder_time})" if reminder_time else ""
+        text += f"{status} **{name}**{time_str}\n"
+
+        if not completed:
+            callback_data = f"check_{habit_id}"
+            keyboard.button(text=f"✅ {name}", callback_data=callback_data)
+
+    keyboard.adjust(1)
+
+    await message.answer(
+        text,
+        reply_markup=keyboard.as_markup(),
+        parse_mode="Markdown",
+    )
+
+
+@router.callback_query(F.data.startswith("check_"))
+async def check_habit(callback: CallbackQuery):
+    """Marks a habit as completed"""
+    habit_id = int(callback.data.replace("check_", ""))
+    success = db.mark_habit_completed(habit_id)
+
+    if success:
+        await callback.answer("✅ Отлично! Привычка отмечена!")
+    else:
+        await callback.answer("⚠️ Уже отмечено сегодня", show_alert=True)
+        # Show a warning, but continue
+
+    # Updating the message (showing the current list)
+    user_id = callback.from_user.id
+    habits = db.get_habits_with_today_status(user_id)
+
+    text = "📅 **Твои привычки на сегодня**\n\n"
+    keyboard = InlineKeyboardBuilder()
+
+    for habit_id, name, reminder_time, completed in habits:
+        status = "✅" if completed else "⏳"
+        time_str = f" (напомню в {reminder_time})" if reminder_time else ""
+        text += f"{status} **{name}**{time_str}\n"
+
+        if not completed:
+            callback_data = f"check_{habit_id}"
+            keyboard.button(text=f"✅ {name}", callback_data=callback_data)
+
+    keyboard.adjust(1)
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=keyboard.as_markup() if keyboard.export() else None,
+        parse_mode="Markdown"
+    )
