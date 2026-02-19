@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -12,6 +12,19 @@ db = Database()
 
 # Temp storage for habit data during a conversation
 user_temp_data = {}
+
+
+# Cancel command
+@router.message(Command("cancel"))
+async def cmd_cancel(message: Message, state: FSMContext):
+    """Canceling the current action"""
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("🤷 Нет активного действия для отмены.")
+        return
+
+    await state.clear()
+    await message.answer("✅ Действие отменено. Можешь начать заново командой /add")
 
 
 @router.message(Command("add"))
@@ -27,7 +40,7 @@ async def cmd_add(message: Message, state: FSMContext):
     )
 
 
-@router.message(AddHabit.waiting_for_name)
+@router.message(AddHabit.waiting_for_name, ~F.text.startswith('/'))
 async def habit_name_received(message: Message, state: FSMContext):
     """Get the name of the habit and find out the time"""
     habit_name = message.text.strip()
@@ -91,7 +104,7 @@ async def custom_time_chosen(callback: CallbackQuery, state: FSMContext):
     # Remain in the same state (waiting_for_time) but now waiting for the text with the time
 
 
-@router.message(AddHabit.waiting_for_time)
+@router.message(AddHabit.waiting_for_time, ~F.text.startswith('/'))
 async def habit_time_received(message: Message, state: FSMContext):
     """Getting the time from user"""
     time_text = message.text.strip()
@@ -143,16 +156,3 @@ async def habit_time_received(message: Message, state: FSMContext):
         f"🕒 Напоминание каждый день в {reminder_time}\n\n"
         "Чтобы отметить выполнение, используй /today"
     )
-
-
-# Cancel command
-@router.message(Command("cancel"))
-async def cmd_cancel(message: Message, state: FSMContext):
-    """Canceling the current action"""
-    current_state = await state.get_state()
-    if current_state is None:
-        await message.answer("🤷 Нет активного действия для отмены.")
-        return
-
-    await state.clear()
-    await message.answer("✅ Действие отменено. Можешь начать заново командой /add")
