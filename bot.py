@@ -2,6 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import BotCommand
 
 from config import BOT_TOKEN
 from handlers import common, habits
@@ -24,9 +25,24 @@ dp.include_router(common.router)
 dp.include_router(habits.router)
 
 
+async def set_commands(bot: Bot):
+    """Sets the list of commands for the bot's menu"""
+    commands = [
+        BotCommand(command="start", description="🚀 Запустить бота"),
+        BotCommand(command="add", description="➕ Добавить привычку"),
+        BotCommand(command="help", description="❓ Помощь"),
+        BotCommand(command="cancel", description="✖ Отменить действие"),
+    ]
+    await bot.set_my_commands(commands=commands)
+
+
 async def main():
     """The main function of launching the bot"""
     logging.info("Bot starting...")
+
+    await set_commands(bot)
+    logging.info("The command menu is set")
+
     await dp.start_polling(bot)
 
 
